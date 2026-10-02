@@ -175,21 +175,46 @@ export default class VortexGallery {
   }
 
   async init(imagePaths: string[]) {
-    await this.loadTextureAtlas(imagePaths);
-    this.buildInstancedMesh();
-    this.buildCenterMesh();
-    this.render();
+    try {
+      await this.loadTextureAtlas(imagePaths);
+      this.buildInstancedMesh();
+      this.buildCenterMesh();
+      this.render();
+    } catch (err) {
+      console.error("[VortexGallery] Initialization error:", err);
+    }
   }
 
   async loadTextureAtlas(paths: string[]) {
     const images = await Promise.all(
       paths.map(
         (path) =>
-          new Promise<HTMLImageElement>((resolve, reject) => {
+          new Promise<HTMLImageElement>((resolve) => {
             const img = new Image();
             img.crossOrigin = "anonymous";
             img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error(`Failed to load: ${path}`));
+            img.onerror = () => {
+              console.warn(`[VortexGallery] Texture load error for ${path}, generating placeholder.`);
+              const canvas = document.createElement("canvas");
+              canvas.width = 256;
+              canvas.height = 320;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.fillStyle = "#0f172a";
+                ctx.fillRect(0, 0, 256, 320);
+                ctx.fillStyle = "#06b6d4";
+                ctx.font = "bold 16px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("AGENT NODE", 128, 140);
+                ctx.fillStyle = "#94a3b8";
+                ctx.font = "12px monospace";
+                ctx.fillText(path.split("/").pop() || "STANDBY", 128, 170);
+              }
+              const fallbackImg = new Image();
+              fallbackImg.onload = () => resolve(fallbackImg);
+              fallbackImg.src = canvas.toDataURL();
+            };
             img.src = path;
           })
       )
